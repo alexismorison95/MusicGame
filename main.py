@@ -5,27 +5,29 @@ import random
 pygame.init()
 
 # Display
-width = 800
-height = 600
+ancho = 800
+alto = 650
 
 FPS = 60
 
-gameDisplay = pygame.display.set_mode((width, height))
-pygame.display.set_caption('Music Ship')
+gameDisplay = pygame.display.set_mode((ancho, alto))
+pygame.display.set_caption('Morris GAME')
 clock = pygame.time.Clock()
 
-square1 = pygame.image.load('imagenes/square3.png').convert_alpha()
-square2 = pygame.image.load('imagenes/square4.png').convert_alpha()
-square3 = pygame.image.load('imagenes/square5.png').convert_alpha()
-square4 = pygame.image.load('imagenes/square7.png').convert_alpha()
-square5 = pygame.image.load('imagenes/square6.png').convert_alpha()
+obst1Img = pygame.image.load('imagenes/obstaculo/obst1.png').convert_alpha()
+obst2Img = pygame.image.load('imagenes/obstaculo/obst2.png').convert_alpha()
+obst3Img = pygame.image.load('imagenes/obstaculo/obst3.png').convert_alpha()
+obstChocadoImg = pygame.image.load('imagenes/obstaculo/obst4.png').convert_alpha()
 
-line = pygame.image.load('imagenes/lineLarga2.png').convert_alpha()
+lineaImg = pygame.image.load('imagenes/linea/lineLargaTransparente.png').convert_alpha()
 
-heart = pygame.image.load('imagenes/heart3.png').convert_alpha()
-heart2 = pygame.image.load('imagenes/heart8.png').convert_alpha()
+vidaImg = pygame.image.load('imagenes/corazon/corazon.png').convert_alpha()
 
-music = pygame.mixer.music.load('musica/03-run-kurt-run-.mp3')
+naveImgs = [pygame.image.load('imagenes/nave/nave1.png').convert_alpha(),
+            pygame.image.load('imagenes/nave/nave2.png').convert_alpha(),
+            pygame.image.load('imagenes/nave/nave3.png').convert_alpha()]
+
+musica = pygame.mixer.music.load('musica/01-run-kurt-run.mp3')
 
 
 # Colors
@@ -33,30 +35,28 @@ black = (0, 0, 0)
 white = (255, 255, 255)
 red = (255, 0, 0)
 
-blockColor = (53, 115, 255)
-
-squareXs = [0, 160, 320, 480, 640]
+columnas = [0, 160, 320, 480, 640]
 
 # Tamanio de nave
-naveSizeWidth = 116
-naveSizeHeight = 116
+naveAncho = 116
+naveAlto = 116
 
 
 # Class
-class MyShip:
-    def __init__(self, x, y, image):
+class Nave:
+    def __init__(self, x, y, imagen):
         self.x = x
         self.y = y
-        self.image = image
+        self.imagen = imagen
     
 
-class Square:
-    def __init__(self, x, y, image1, heart, touch):
+class Obstaculo:
+    def __init__(self, x, y, imagen, isCorazon, isTocado):
         self.x = x
         self.y = y
-        self.image1 = image1
-        self.heart = heart
-        self.touch = touch
+        self.imagen = imagen
+        self.isCorazon = isCorazon
+        self.isTocado = isTocado
 
 
 
@@ -67,40 +67,36 @@ class Square:
 #     gameDisplay.blit(text, (5, 5))
 
 
-# Imprimir las vidas en la navecita
-def loadShip():
-    shapeImage = pygame.image.load('imagenes/ship.png').convert_alpha()
-    ship = MyShip(340, 460, shapeImage)
-    
-    return ship
+# Funcion que verifica que la nave no se salga de la pantalla..
+# def verificarNave(nave):
+#     if(nave.x > (ancho - naveAncho)):
+#         nave.x = ancho - naveAncho
+#     if(nave.x < 0):
+#         nave.x = 0
 
+# Funcion para mostrar mi nave
+def mostrarNave(nave):
+    gameDisplay.blit(nave.imagen, (nave.x, nave.y))
 
-def verificarShip(ship):
-    if(ship.x > (width - naveSizeWidth)):
-        ship.x = width - naveSizeWidth
-    if(ship.x < 0):
-        ship.x = 0
-
-def showShip(ship):
-    gameDisplay.blit(ship.image, (ship.x, ship.y))
-
-def showImages(img, x, y):
+# Funcion basica para mostrar cualquier imagen
+def mostrarImagen(img, x, y):
     gameDisplay.blit(img, (x, y))
 
-def showLines(line):
+# Funcion para mostrar las lineas de fondo
+def mostrarLineas(linea):
     xs = [-45, 115, 275, 435, 595, 755]
     for i in range(0, 6):
-        showImages(line, xs[i], -60)
+        mostrarImagen(linea, xs[i], -60)
 
-
+# Funcion para mostrar los FPS
 def showFPS():
     font = pygame.font.SysFont(None, 25)
     fpss = str(clock.get_fps())
     text = font.render("FPS: " + fpss[0:4], True, white)
     gameDisplay.blit(text, (710, 5))
 
-# squareXs = [0, 160, 320, 480, 640]
-def squarePos(x):
+# Funcion para obtener la columna a la que pertenece un obstaculo
+def obstaculoColumna(x):
     if x >= 0 and x < 160: return 0
     if x >= 160 and x < 320: return 1
     if x >= 320 and x < 480: return 2
@@ -123,39 +119,33 @@ def squarePos(x):
 #     time.sleep(2)
 
 
-# def crash():
-#     message_display('You Crashed')
-
-#     return True
-
-
 def game_loop():
 
+    # Reproduzco el tema cargado
     pygame.mixer.music.play(-1)
 
+    # Variables para alternar entre los colores de los obstaculos
     color = -1
     inc = True
 
-    pos_ship = 2
-    lives = 3
+    # Posicion inicial de mi nave
+    posNave = 2
 
-    # squareXs = [0, 160, 320, 480, 640]
-    squares = []
+    # Cantidad de vidas
+    cantVidas = 3
+
+    # Creo una lista de obstaculos y vidas
+    obstaculos = []
     for i in range(0, 10):
         if(i % 10 == 0):
-            hr = Square(random.choice(squareXs) + 10, -80 * i, heart2, True, False)
-            squares.append(hr)
+            aux = Obstaculo(random.choice(columnas) + 10, -80 * i, vidaImg, True, False)
+            obstaculos.append(aux)
         else:
-            sq = Square(random.choice(squareXs), -80 * i, square1, False, False)
-            squares.append(sq)
+            aux = Obstaculo(random.choice(columnas), -80 * i, obst1Img, False, False)
+            obstaculos.append(aux)
 
-    showLines(line)
-
-    hearts = [heart, heart, heart]
-
-    #showImages(square, x_square, y_square)
-
-    ship = loadShip()
+    # Cargo mi nave
+    nave = Nave(340, 460, naveImgs[2])
 
     gameExit = False
 
@@ -163,6 +153,7 @@ def game_loop():
 
     while(not gameExit):
 
+        # EVENTOS DEL TECLADO
         for event in pygame.event.get():
 
             if(event.type == pygame.QUIT):
@@ -172,29 +163,25 @@ def game_loop():
             if(event.type == pygame.KEYDOWN):
 
                 if(event.key == pygame.K_LEFT):
-                    if(pos_ship > 0):
-                        pos_ship -= 1
+                    if(posNave > 0):
+                        posNave -= 1
                 if(event.key == pygame.K_RIGHT):
-                    if(pos_ship < 4):
-                        pos_ship += 1
-
-
-            # if(event.type == pygame.KEYUP):
-
-            #     if(event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT):
-            #         x_change = 0
-
+                    if(posNave < 4):
+                        posNave += 1
 
         # FIN DE EVENTOS
 
-        # Actualizo la posicion de mi auto
-        ship.x = squareXs[pos_ship] + 25
+        # Actualizo la posicion de mi nave a la columna correspondiente
+        nave.x = columnas[posNave] + 25
         
-        # Dibujo la superficie
+        # Dibujo las superficies
+        # Fondo negro
         gameDisplay.fill(black)
 
-        showLines(line)
+        # Dibujo las lineas de las columnas
+        mostrarLineas(lineaImg)
 
+        # Cada 20 FPS actualizo los colores de los obstaculos
         if(loops_num % (FPS * 0.2) == 0):
             if(color < 2 and inc):
                 color += 1
@@ -205,70 +192,100 @@ def game_loop():
                 if(color == 0):
                     inc = True
 
+        # Muestro los FPS
         showFPS()
 
-        for i in range(0, len(squares)):
+        # Muestro los obstaculos
+        for i in range(0, len(obstaculos)):
 
-            if(squares[i].touch):
-                if(squares[i].heart):
-                    showImages(squares[i].image1, squares[i].x, squares[i].y)
+            # Primero si el obstaculo fue tocado
+            if(obstaculos[i].isTocado):
+                # Pregunto si toque una vida
+                if(obstaculos[i].isCorazon):
+                    mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
+                # Sino quiere decir que toque un obstaculo
                 else:
-                    showImages(squares[i].image1, squares[i].x, squares[i].y)
-            elif(color == 0 and not squares[i].heart):
-                squares[i].image1 = square1
-                showImages(squares[i].image1, squares[i].x, squares[i].y)
-            elif(color == 1 and not squares[i].heart):
-                squares[i].image1 = square2
-                showImages(squares[i].image1, squares[i].x, squares[i].y)
-            elif(color == 2 and not squares[i].heart):
-                squares[i].image1 = square3
-                showImages(squares[i].image1, squares[i].x, squares[i].y)
+                    mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
+            # Si no fue tocado asigno los colores a los obstaculos y los muestro
+            elif(color == 0 and not obstaculos[i].isCorazon):
+                obstaculos[i].imagen = obst1Img
+                mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
+            elif(color == 1 and not obstaculos[i].isCorazon):
+                obstaculos[i].imagen = obst2Img
+                mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
+            elif(color == 2 and not obstaculos[i].isCorazon):
+                obstaculos[i].imagen = obst3Img
+                mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
+            # Sino muestro el corazon
             else:
-                showImages(squares[i].image1, squares[i].x, squares[i].y)
+                mostrarImagen(obstaculos[i].imagen, obstaculos[i].x, obstaculos[i].y)
             
-            squares[i].y += 7
+            # Aumento la componente 'y' para que se muevan
+            obstaculos[i].y += 7
 
-        showShip(ship)
-
-        for i in range(0, lives):
-            showImages(hearts[i], 30*i, 0)
+        # Muestro la nave
+        mostrarNave(nave)
 
 
         # Verifico si hay una colision
-        for i in range(0, len(squares)):
-            if(squares[i].heart):
-                if(ship.y < squares[i].y + 100 and ship.y > squares[i].y - 100):
-                    if(pos_ship == squarePos(squares[i].x)):
-                        if(lives < 3 and loops_num % (FPS * 0.3) == 0):
-                            lives += 1
-                            squares[i].image1 = heart
-                            squares[i].touch = True
-            elif(ship.y < squares[i].y + 70 and ship.y > squares[i].y - 50):
-                if(pos_ship == squarePos(squares[i].x) and loops_num % (FPS * 0.3) == 0):
-                    if(lives > 1):
-                        lives -= 1
-                        squares[i].image1 = square5
-                        squares[i].touch = True
-                        #time.sleep(1)
+        for i in range(0, len(obstaculos)):
+            # Verifico primero si toque una vida
+            if(obstaculos[i].isCorazon):
+                # Verifico la componente y
+                if(nave.y < obstaculos[i].y + 100 and nave.y > obstaculos[i].y - 100):
+                    # Verifico la columna
+                    if(posNave == obstaculoColumna(obstaculos[i].x)):
+                        # Si tengo menos de 3 vidas aumento una vida
+                        if(cantVidas < 3 and loops_num % (FPS * 0.3) == 0):
+                            # Aumento el contador
+                            cantVidas += 1
+                            # TODO: Conseguir una imagen para las vidas tocadas
+                            obstaculos[i].imagen = vidaImg
+                            # Asigno a la vida como tocada
+                            obstaculos[i].isTocado = True
+                            # Actualizo la imagen de la nave
+                            nave.imagen = naveImgs[cantVidas-1]
+
+            # Sino toque un obstaculo y verifico la componente y
+            elif(nave.y < obstaculos[i].y + 70 and nave.y > obstaculos[i].y - 50):
+                # Verifico la columna
+                if(posNave == obstaculoColumna(obstaculos[i].x) and loops_num % (FPS * 0.3) == 0):
+                    # Si tengo vidas disponibles
+                    if(cantVidas > 1):
+                        # Decremento el contador
+                        cantVidas -= 1
+                        # Actualizo la imagen del obstaculo chocado
+                        obstaculos[i].imagen = obstChocadoImg
+                        # Lo marco como chocado
+                        obstaculos[i].isTocado = True
+                        # Actualizo la imagen de la nave
+                        nave.imagen = naveImgs[cantVidas-1]
+                    # Si no, ya no me quedan vidas
                     else:
                         game_loop()
 
-
-        for i in range(0, len(squares)):
-            if(squares[i].y > 600):
-                squares[i].x = random.choice(squareXs)
-                squares[i].y = -80
-                squares[i].touch = False
-                if(squares[i].heart):
-                    squares[i].image1 = heart2
+        # Cuando los obstaculos se salen de la pantalla tengo que reiniciarlos
+        # De momento es todo al azar
+        for i in range(0, len(obstaculos)):
+            if(obstaculos[i].y > 625):
+                # Elijo la columna
+                obstaculos[i].x = random.choice(columnas)
+                # Lo mando para arriba
+                obstaculos[i].y = -80
+                # Lo marco como no chocado
+                obstaculos[i].isTocado = False
+                # Si es una vida reinicio la imagen
+                if(obstaculos[i].isCorazon):
+                    obstaculos[i].imagen = vidaImg
+                # Sino, es un obstaculo, reinicio la imagen
                 else:
-                    squares[i].image1 = square1
+                    obstaculos[i].imagen = obst1Img
 
 
         # Actualizo la superficie
         pygame.display.update()
         loops_num += 1
-        clock.tick(FPS) # FPS
+        clock.tick(FPS) # Set FPS
 
 game_loop()
 pygame.quit()
